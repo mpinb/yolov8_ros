@@ -179,7 +179,8 @@ class Yolov8Node(Node):
         if self.enable:
 
             # convert image + predict
-            cv_image = self.cv_bridge.imgmsg_to_cv2(msg)
+            cv_image = self.cv_bridge.imgmsg_to_cv2(msg, "bgr8")
+            # convert to RGB format
             results = self.yolo.predict(
                 source=cv_image,
                 verbose=False,
