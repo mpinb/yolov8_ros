@@ -21,58 +21,53 @@ from launch.actions import DeclareLaunchArgument
 
 
 def generate_launch_description():
-
-    #
-    # ARGS
-    #
     model = LaunchConfiguration("model")
     model_cmd = DeclareLaunchArgument(
         "model",
         default_value="/home/nci_la/soma/ros_ws/src/fly-handler/data/yolov8/segmentation_multiple_forcep_instance_all_views/runs/default_x/weights/best.pt",
-        description="Model name or path")
+        description="Model name or path",
+    )
 
     tracker = LaunchConfiguration("tracker")
     tracker_cmd = DeclareLaunchArgument(
-        "tracker",
-        default_value="bytetrack.yaml",
-        description="Tracker name or path")
+        "tracker", default_value="bytetrack.yaml", description="Tracker name or path"
+    )
 
     device = LaunchConfiguration("device")
     device_cmd = DeclareLaunchArgument(
-        "device",
-        default_value="cuda:0",
-        description="Device to use (GPU/CPU)")
+        "device", default_value="cuda:0", description="Device to use (GPU/CPU)"
+    )
 
     enable = LaunchConfiguration("enable")
     enable_cmd = DeclareLaunchArgument(
-        "enable",
-        default_value="True",
-        description="Whether to start YOLOv8 enabled")
+        "enable", default_value="True", description="Whether to start YOLOv8 enabled"
+    )
 
     threshold = LaunchConfiguration("threshold")
     threshold_cmd = DeclareLaunchArgument(
         "threshold",
         default_value="0.3",
-        description="Minimum probability of a detection to be published")
+        description="Minimum probability of a detection to be published",
+    )
 
     input_image_topic_left = LaunchConfiguration("input_image_topic_left")
     input_image_topic_left_cmd = DeclareLaunchArgument(
         "input_image_topic_left",
         default_value="/mid_cam/pylon_camera_node/image_raw",
-        description="Name of the input image topic of left camera")
+        description="Name of the input image topic of left camera",
+    )
 
     input_image_topic_right = LaunchConfiguration("input_image_topic_right")
     input_image_topic_right_cmd = DeclareLaunchArgument(
         "input_image_topic_right",
         default_value="/right_cam/pylon_camera_node/image_raw",
-        description="Name of the input image topic of right camera")    
-    
+        description="Name of the input image topic of right camera",
+    )
 
     namespace = LaunchConfiguration("namespace")
     namespace_cmd = DeclareLaunchArgument(
-        "namespace",
-        default_value="yolo",
-        description="Namespace for the nodes")
+        "namespace", default_value="yolo", description="Namespace for the nodes"
+    )
 
     #
     # NODES
@@ -82,11 +77,10 @@ def generate_launch_description():
         executable="yolov8_node",
         name="yolov8_node",
         namespace=f"yolo/left_cam",
-        parameters=[{"model": model,
-                     "device": device,
-                     "enable": enable,
-                     "threshold": threshold}],
-        remappings=[("image_raw", input_image_topic_left)]
+        parameters=[
+            {"model": model, "device": device, "enable": enable, "threshold": threshold}
+        ],
+        remappings=[("image_raw", input_image_topic_left)],
     )
 
     detector_node_right_cam_cmd = Node(
@@ -94,11 +88,30 @@ def generate_launch_description():
         executable="yolov8_node",
         name="yolov8_node",
         namespace=f"yolo/right_cam",
-        parameters=[{"model": model,
-                     "device": device,
-                     "enable": enable,
-                     "threshold": threshold}],
-        remappings=[("image_raw", input_image_topic_right)]
+        parameters=[
+            {"model": model, "device": device, "enable": enable, "threshold": threshold}
+        ],
+        remappings=[("image_raw", input_image_topic_right)],
+    )
+
+    tip_localizor_node_left_cam_cmd = Node(
+        package="fh_tip_localization",
+        executable="tip_localizor",
+        name="tip_localizor_node",
+        namespace=f"yolo/left_cam",
+        remappings=[
+            ("image_raw", input_image_topic_left),
+        ],
+    )
+
+    tip_localizor_node_right_cam_cmd = Node(
+        package="fh_tip_localization",
+        executable="tip_localizor",
+        name="tip_localizor_node",
+        namespace=f"yolo/right_cam",
+        remappings=[
+            ("image_raw", input_image_topic_left),
+        ],
     )
 
     tracking_node_left_cam_cmd = Node(
@@ -107,7 +120,10 @@ def generate_launch_description():
         name="tracking_node",
         namespace=f"yolo/left_cam",
         parameters=[{"tracker": tracker}],
-        remappings=[("image_raw", input_image_topic_left)]
+        remappings=[
+            ("image_raw", input_image_topic_left),
+            ("detections", "detections_with_tips"),
+        ],
     )
 
     tracking_node_right_cam_cmd = Node(
@@ -116,7 +132,10 @@ def generate_launch_description():
         name="tracking_node",
         namespace=f"yolo/right_cam",
         parameters=[{"tracker": tracker}],
-        remappings=[("image_raw", input_image_topic_right)]
+        remappings=[
+            ("image_raw", input_image_topic_right),
+            ("detections", "detections_with_tips"),
+        ],
     )
 
     debug_node_left_cam_cmd = Node(
@@ -124,8 +143,7 @@ def generate_launch_description():
         executable="debug_node",
         name="debug_node",
         namespace=f"yolo/left_cam",
-        remappings=[("image_raw", input_image_topic_left),
-                    ("detections", "tracking")]
+        remappings=[("image_raw", input_image_topic_left), ("detections", "tracking")],
     )
 
     debug_node_right_cam_cmd = Node(
@@ -133,8 +151,7 @@ def generate_launch_description():
         executable="debug_node",
         name="debug_node",
         namespace=f"yolo/right_cam",
-        remappings=[("image_raw", input_image_topic_right),
-                    ("detections", "tracking")]
+        remappings=[("image_raw", input_image_topic_right), ("detections", "tracking")],
     )
 
     ld = LaunchDescription()
@@ -150,6 +167,8 @@ def generate_launch_description():
 
     ld.add_action(detector_node_left_cam_cmd)
     ld.add_action(detector_node_right_cam_cmd)
+    ld.add_action(tip_localizor_node_left_cam_cmd)
+    ld.add_action(tip_localizor_node_right_cam_cmd)
     ld.add_action(tracking_node_left_cam_cmd)
     ld.add_action(tracking_node_right_cam_cmd)
     ld.add_action(debug_node_left_cam_cmd)
