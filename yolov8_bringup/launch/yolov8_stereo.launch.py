@@ -13,11 +13,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
+import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.substitutions import LaunchConfiguration
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
@@ -154,6 +156,26 @@ def generate_launch_description():
         remappings=[("image_raw", input_image_topic_right), ("detections", "tracking")],
     )
 
+    calibration_node_cmd = Node(
+        package="fh_calibration",
+        executable="stereo_camera_calibration",
+        name="stereo_camera_calibration_node",
+        remappings=[
+            ("left_cam_detections", "/yolo/left_cam/detections_with_tips"),
+            ("right_cam_detections", "/yolo/right_cam/detections_with_tips"),
+            ("motors_state", "/robotic_tweezers/motors/motors_state"),
+        ],
+    )
+
+    # other_launch_file = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(
+    #         os.path.join(
+    #             get_package_share_directory("micromanipulator_interface"),
+    #             "bring_up.launch",
+    #         )
+    #     )
+    # )
+
     ld = LaunchDescription()
 
     ld.add_action(model_cmd)
@@ -173,5 +195,7 @@ def generate_launch_description():
     ld.add_action(tracking_node_right_cam_cmd)
     ld.add_action(debug_node_left_cam_cmd)
     ld.add_action(debug_node_right_cam_cmd)
+    # ld.add_action(other_launch_file)
+    ld.add_action(calibration_node_cmd)
 
     return ld
