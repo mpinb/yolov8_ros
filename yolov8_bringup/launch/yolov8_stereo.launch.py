@@ -161,8 +161,8 @@ def generate_launch_description():
         executable="stereo_camera_calibration",
         name="stereo_camera_calibration_node",
         remappings=[
-            ("left_cam_detections", "/yolo/left_cam/detections_with_tips"),
-            ("right_cam_detections", "/yolo/right_cam/detections_with_tips"),
+            ("left_cam_detections", "/yolo/left_cam/tracking"),
+            ("right_cam_detections", "/yolo/right_cam/tracking"),
             ("motors_state", "/robotic_tweezers/motors/motors_state"),
         ],
     )
