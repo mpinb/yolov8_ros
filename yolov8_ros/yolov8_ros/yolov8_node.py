@@ -21,7 +21,7 @@ from rclpy.qos import qos_profile_sensor_data
 from rclpy.node import Node
 
 from cv_bridge import CvBridge
-
+import cv2 as cv
 from ultralytics import YOLO
 from ultralytics.engine.results import Results
 from ultralytics.engine.results import Boxes
@@ -76,6 +76,15 @@ class Yolov8Node(Node):
 
         # services
         self._srv = self.create_service(SetBool, "enable", self.enable_cb)
+
+        # debug
+        self.__debug(model)
+
+    def __debug(self, model) -> None:
+        self.get_logger().info("model: {}".format(model))
+        self.get_logger().info("device: {}".format(self.device))
+        self.get_logger().info("threshold: {}".format(self.threshold))
+        self.get_logger().info("enable: {}".format(self.enable))
 
     def enable_cb(
         self,
@@ -177,13 +186,13 @@ class Yolov8Node(Node):
     def image_cb(self, msg: Image) -> None:
 
         if self.enable:
+            cv_image = self.cv_bridge.imgmsg_to_cv2(msg)
+            # Required as cv_bridge is not converting correctly
+            cv_image = cv.cvtColor(cv_image, cv.COLOR_BGR2RGB)
 
-            # convert image + predict
-            cv_image = self.cv_bridge.imgmsg_to_cv2(msg, "bgr8")
-            # convert to RGB format
             results = self.yolo.predict(
                 source=cv_image,
-                verbose=False,
+                verbose=True,
                 stream=False,
                 conf=self.threshold,
                 device=self.device
