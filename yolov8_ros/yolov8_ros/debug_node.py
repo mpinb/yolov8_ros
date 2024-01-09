@@ -39,7 +39,6 @@ from yolov8_msgs.msg import DetectionArray
 
 
 class DebugNode(Node):
-
     def __init__(self) -> None:
         super().__init__("debug_node")
 
@@ -48,33 +47,39 @@ class DebugNode(Node):
 
         # pubs
         self._dbg_pub = self.create_publisher(Image, "dbg_image", 10)
-        self._bb_markers_pub = self.create_publisher(
-            MarkerArray, "dgb_bb_markers", 10)
-        self._kp_markers_pub = self.create_publisher(
-            MarkerArray, "dgb_kp_markers", 10)
+        self._bb_markers_pub = self.create_publisher(MarkerArray, "dgb_bb_markers", 10)
+        self._kp_markers_pub = self.create_publisher(MarkerArray, "dgb_kp_markers", 10)
 
         # subs
         image_sub = message_filters.Subscriber(
-            self, Image, "image_raw", qos_profile=qos_profile_sensor_data)
+            self, Image, "image_raw", qos_profile=qos_profile_sensor_data
+        )
         detections_sub = message_filters.Subscriber(
-            self, DetectionArray, "detections", qos_profile=10)
+            self, DetectionArray, "detections", qos_profile=10
+        )
 
         self._synchronizer = message_filters.ApproximateTimeSynchronizer(
-            (image_sub, detections_sub), 10, 0.5)
+            (image_sub, detections_sub), 10, 0.5
+        )
         self._synchronizer.registerCallback(self.detections_cb)
 
-    def draw_box(self, cv_image: np.array, detection: Detection, color: Tuple[int]) -> np.array:
-
+    def draw_box(
+        self, cv_image: np.array, detection: Detection, color: Tuple[int]
+    ) -> np.array:
         # get detection info
         label = detection.class_name
         score = detection.score
         box_msg: BoundingBox2D = detection.bbox
         track_id = detection.id
 
-        min_pt = (round(box_msg.center.position.x - box_msg.size.x / 2.0),
-                  round(box_msg.center.position.y - box_msg.size.y / 2.0))
-        max_pt = (round(box_msg.center.position.x + box_msg.size.x / 2.0),
-                  round(box_msg.center.position.y + box_msg.size.y / 2.0))
+        min_pt = (
+            round(box_msg.center.position.x - box_msg.size.x / 2.0),
+            round(box_msg.center.position.y - box_msg.size.y / 2.0),
+        )
+        max_pt = (
+            round(box_msg.center.position.x + box_msg.size.x / 2.0),
+            round(box_msg.center.position.y + box_msg.size.y / 2.0),
+        )
 
         # draw box
         cv2.rectangle(cv_image, min_pt, max_pt, color, 2)
@@ -83,38 +88,51 @@ class DebugNode(Node):
         label = "{} ({}) ({:.3f})".format(label, str(track_id), score)
         pos = (min_pt[0] + 5, min_pt[1] + 25)
         font = cv2.FONT_HERSHEY_SIMPLEX
-        cv2.putText(cv_image, label, pos, font,
-                    1, color, 1, cv2.LINE_AA)
+        cv2.putText(cv_image, label, pos, font, 1, color, 1, cv2.LINE_AA)
 
         return cv_image
 
-    def draw_mask(self, cv_image: np.array, detection: Detection, color: Tuple[int]) -> np.array:
-
+    def draw_mask(
+        self, cv_image: np.array, detection: Detection, color: Tuple[int]
+    ) -> np.array:
         mask_msg = detection.mask
-        mask_array = np.array([[int(ele.x), int(ele.y)]
-                              for ele in mask_msg.data])
+        mask_array = np.array([[int(ele.x), int(ele.y)] for ele in mask_msg.data])
 
         if mask_msg.data:
             layer = cv_image.copy()
             layer = cv2.fillPoly(layer, pts=[mask_array], color=color)
             cv2.addWeighted(cv_image, 0.4, layer, 0.6, 0, cv_image)
-            cv_image = cv2.polylines(cv_image, [mask_array], isClosed=True,
-                                     color=color, thickness=2, lineType=cv2.LINE_AA)
+            cv_image = cv2.polylines(
+                cv_image,
+                [mask_array],
+                isClosed=True,
+                color=color,
+                thickness=2,
+                lineType=cv2.LINE_AA,
+            )
         return cv_image
 
     def draw_keypoints(self, cv_image: np.array, detection: Detection) -> np.array:
-
         keypoints_msg = detection.keypoints
 
         ann = Annotator(cv_image)
 
         kp: KeyPoint2D
         for kp in keypoints_msg.data:
-            color_k = [int(x) for x in ann.kpt_color[kp.id - 1]
-                       ] if len(keypoints_msg.data) == 17 else colors(kp.id - 1)
+            color_k = (
+                [int(x) for x in ann.kpt_color[kp.id - 1]]
+                if len(keypoints_msg.data) == 17
+                else colors(kp.id - 1)
+            )
 
-            cv2.circle(cv_image, (int(kp.point.x), int(kp.point.y)),
-                       5, color_k, -1, lineType=cv2.LINE_AA)
+            cv2.circle(
+                cv_image,
+                (int(kp.point.x), int(kp.point.y)),
+                5,
+                color_k,
+                -1,
+                lineType=cv2.LINE_AA,
+            )
 
         def get_pk_pose(kp_id: int) -> Tuple[int]:
             for kp in keypoints_msg.data:
@@ -127,13 +145,18 @@ class DebugNode(Node):
             kp2_pos = get_pk_pose(sk[1])
 
             if kp1_pos is not None and kp2_pos is not None:
-                cv2.line(cv_image, kp1_pos, kp2_pos, [
-                    int(x) for x in ann.limb_color[i]], thickness=2, lineType=cv2.LINE_AA)
+                cv2.line(
+                    cv_image,
+                    kp1_pos,
+                    kp2_pos,
+                    [int(x) for x in ann.limb_color[i]],
+                    thickness=2,
+                    lineType=cv2.LINE_AA,
+                )
 
         return cv_image
 
     def create_bb_marker(self, detection: Detection) -> Marker:
-
         bbox3d = detection.bbox3d
 
         marker = Marker()
@@ -167,7 +190,6 @@ class DebugNode(Node):
         return marker
 
     def create_kp_marker(self, keypoint: KeyPoint3D) -> Marker:
-
         marker = Marker()
 
         marker.ns = "yolov8_3d"
@@ -198,14 +220,12 @@ class DebugNode(Node):
         return marker
 
     def detections_cb(self, img_msg: Image, detection_msg: DetectionArray) -> None:
-
         cv_image = self.cv_bridge.imgmsg_to_cv2(img_msg)
         bb_marker_array = MarkerArray()
         kp_marker_array = MarkerArray()
 
         detection: Detection
         for detection in detection_msg.detections:
-
             # random color
             label = detection.class_name
 
@@ -217,9 +237,12 @@ class DebugNode(Node):
 
             color = self._class_to_color[label]
 
-            cv_image = self.draw_box(cv_image, detection, color)
-            cv_image = self.draw_mask(cv_image, detection, color)
-            cv_image = self.draw_keypoints(cv_image, detection)
+            # Debugging: Explicit check for forceps class only
+            # TODO: Remove this
+            if detection.class_id == 0:
+                cv_image = self.draw_box(cv_image, detection, color)
+                cv_image = self.draw_mask(cv_image, detection, color)
+                cv_image = self.draw_keypoints(cv_image, detection)
 
             if detection.bbox3d.frame_id:
                 marker = self.create_bb_marker(detection)
@@ -236,8 +259,9 @@ class DebugNode(Node):
                     kp_marker_array.markers.append(marker)
 
         # publish dbg image
-        self._dbg_pub.publish(self.cv_bridge.cv2_to_imgmsg(cv_image,
-                                                           encoding=img_msg.encoding))
+        self._dbg_pub.publish(
+            self.cv_bridge.cv2_to_imgmsg(cv_image, encoding=img_msg.encoding)
+        )
         self._bb_markers_pub.publish(bb_marker_array)
         self._kp_markers_pub.publish(kp_marker_array)
 
