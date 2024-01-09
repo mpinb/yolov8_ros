@@ -40,26 +40,23 @@ from std_srvs.srv import SetBool
 
 
 class Yolov8Node(Node):
-
     def __init__(self) -> None:
         super().__init__("yolov8_node")
 
         # params
         self.declare_parameter("model", "yolov8m.pt")
-        model = self.get_parameter(
-            "model").get_parameter_value().string_value
+        model = self.get_parameter("model").get_parameter_value().string_value
 
         self.declare_parameter("device", "cuda:0")
-        self.device = self.get_parameter(
-            "device").get_parameter_value().string_value
+        self.device = self.get_parameter("device").get_parameter_value().string_value
 
         self.declare_parameter("threshold", 0.5)
-        self.threshold = self.get_parameter(
-            "threshold").get_parameter_value().double_value
+        self.threshold = (
+            self.get_parameter("threshold").get_parameter_value().double_value
+        )
 
         self.declare_parameter("enable", True)
-        self.enable = self.get_parameter(
-            "enable").get_parameter_value().bool_value
+        self.enable = self.get_parameter("enable").get_parameter_value().bool_value
 
         self.cv_bridge = CvBridge()
         self.yolo = YOLO(model)
@@ -70,8 +67,7 @@ class Yolov8Node(Node):
 
         # subs
         self._sub = self.create_subscription(
-            Image, "image_raw", self.image_cb,
-            qos_profile_sensor_data
+            Image, "image_raw", self.image_cb, qos_profile_sensor_data
         )
 
         # services
@@ -87,16 +83,13 @@ class Yolov8Node(Node):
         self.get_logger().info("enable: {}".format(self.enable))
 
     def enable_cb(
-        self,
-        req: SetBool.Request,
-        res: SetBool.Response
+        self, req: SetBool.Request, res: SetBool.Response
     ) -> SetBool.Response:
         self.enable = req.data
         res.success = True
         return res
 
     def parse_hypothesis(self, results: Results) -> List[Dict]:
-
         hypothesis_list = []
 
         box_data: Boxes
@@ -104,19 +97,17 @@ class Yolov8Node(Node):
             hypothesis = {
                 "class_id": int(box_data.cls),
                 "class_name": self.yolo.names[int(box_data.cls)],
-                "score": float(box_data.conf)
+                "score": float(box_data.conf),
             }
             hypothesis_list.append(hypothesis)
 
         return hypothesis_list
 
     def parse_boxes(self, results: Results) -> List[BoundingBox2D]:
-
         boxes_list = []
 
         box_data: Boxes
         for box_data in results.boxes:
-
             msg = BoundingBox2D()
 
             # get boxes values
@@ -132,7 +123,6 @@ class Yolov8Node(Node):
         return boxes_list
 
     def parse_masks(self, results: Results) -> List[Mask]:
-
         masks_list = []
 
         def create_point2d(x: float, y: float) -> Point2D:
@@ -143,11 +133,12 @@ class Yolov8Node(Node):
 
         mask: Masks
         for mask in results.masks:
-
             msg = Mask()
 
-            msg.data = [create_point2d(float(ele[0]), float(ele[1]))
-                        for ele in mask.xy[0].tolist()]
+            msg.data = [
+                create_point2d(float(ele[0]), float(ele[1]))
+                for ele in mask.xy[0].tolist()
+            ]
             msg.height = results.orig_img.shape[0]
             msg.width = results.orig_img.shape[1]
 
@@ -156,19 +147,16 @@ class Yolov8Node(Node):
         return masks_list
 
     def parse_keypoints(self, results: Results) -> List[KeyPoint2DArray]:
-
         keypoints_list = []
 
         points: Keypoints
         for points in results.keypoints:
-
             msg_array = KeyPoint2DArray()
 
             if points.conf is None:
                 continue
 
             for kp_id, (p, conf) in enumerate(zip(points.xy[0], points.conf[0])):
-
                 if conf >= self.threshold:
                     msg = KeyPoint2D()
 
@@ -184,7 +172,6 @@ class Yolov8Node(Node):
         return keypoints_list
 
     def image_cb(self, msg: Image) -> None:
-
         if self.enable:
             cv_image = self.cv_bridge.imgmsg_to_cv2(msg)
             # Required as cv_bridge is not converting correctly
@@ -195,7 +182,7 @@ class Yolov8Node(Node):
                 verbose=True,
                 stream=False,
                 conf=self.threshold,
-                device=self.device
+                device=self.device,
             )
             results: Results = results[0].cpu()
 
@@ -213,7 +200,6 @@ class Yolov8Node(Node):
             detections_msg = DetectionArray()
 
             for i in range(len(results)):
-
                 aux_msg = Detection()
 
                 if results.boxes:
