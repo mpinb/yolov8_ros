@@ -26,7 +26,7 @@ def generate_launch_description():
     model = LaunchConfiguration("model")
     model_cmd = DeclareLaunchArgument(
         "model",
-        default_value="/home/nci_la/soma/ros_ws/src/fly-handler/data/yolov8/segmentation_multiple_forcep_instance_all_views/runs/default_x/weights/best.pt",
+        default_value="/home/nci_la/soma/ros_ws/src/fly-handler/data/yolov8/segmentation_forcep_and_floor_all_views/runs/default_x3/weights/last.pt",
         description="Model name or path",
     )
 
@@ -55,7 +55,7 @@ def generate_launch_description():
     input_image_topic_left = LaunchConfiguration("input_image_topic_left")
     input_image_topic_left_cmd = DeclareLaunchArgument(
         "input_image_topic_left",
-        default_value="/mid_cam/pylon_camera_node/image_raw",
+        default_value="/left_cam/pylon_camera_node/image_raw",
         description="Name of the input image topic of left camera",
     )
 
@@ -196,6 +196,6 @@ def generate_launch_description():
     ld.add_action(debug_node_left_cam_cmd)
     ld.add_action(debug_node_right_cam_cmd)
     # ld.add_action(other_launch_file)
-    ld.add_action(calibration_node_cmd)
+    # ld.add_action(calibration_node_cmd)
 
     return ld

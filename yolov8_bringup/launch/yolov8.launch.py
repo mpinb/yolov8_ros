@@ -28,7 +28,7 @@ def generate_launch_description():
     model = LaunchConfiguration("model")
     model_cmd = DeclareLaunchArgument(
         "model",
-        default_value="yolov8m.pt",
+        default_value="/home/nci_la/soma/ros_ws/src/fly-handler/data/yolov8/segmentation_forcep_and_floor_all_views/runs/default_x3/weights/best.pt",
         description="Model name or path")
 
     tracker = LaunchConfiguration("tracker")
@@ -52,13 +52,13 @@ def generate_launch_description():
     threshold = LaunchConfiguration("threshold")
     threshold_cmd = DeclareLaunchArgument(
         "threshold",
-        default_value="0.5",
+        default_value="0.1",
         description="Minimum probability of a detection to be published")
 
     input_image_topic = LaunchConfiguration("input_image_topic")
     input_image_topic_cmd = DeclareLaunchArgument(
         "input_image_topic",
-        default_value="/camera/rgb/image_raw",
+        default_value="/mid_cam/pylon_camera_node/image_raw",
         description="Name of the input image topic")
 
     namespace = LaunchConfiguration("namespace")
@@ -81,6 +81,16 @@ def generate_launch_description():
                      "threshold": threshold}],
         remappings=[("image_raw", input_image_topic)]
     )
+    
+    tip_localizor_node_cmd = Node(
+        package="fh_tip_localization",
+        executable="tip_localizor",
+        name="tip_localizor_node",
+        namespace=f"yolo",
+        remappings=[
+            ("image_raw", input_image_topic),
+        ],
+    )
 
     tracking_node_cmd = Node(
         package="yolov8_ros",
@@ -97,7 +107,7 @@ def generate_launch_description():
         name="debug_node",
         namespace=namespace,
         remappings=[("image_raw", input_image_topic),
-                    ("detections", "tracking")]
+                    ("detections", "detections_with_tips")]
     )
 
     ld = LaunchDescription()
@@ -111,6 +121,7 @@ def generate_launch_description():
     ld.add_action(namespace_cmd)
 
     ld.add_action(detector_node_cmd)
+    ld.add_action(tip_localizor_node_cmd)
     ld.add_action(tracking_node_cmd)
     ld.add_action(debug_node_cmd)
 
