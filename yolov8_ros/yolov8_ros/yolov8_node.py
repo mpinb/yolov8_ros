@@ -50,7 +50,7 @@ class Yolov8Node(Node):
         self.declare_parameter("device", "cuda:0")
         self.device = self.get_parameter("device").get_parameter_value().string_value
 
-        self.declare_parameter("threshold", 0.5)
+        self.declare_parameter("threshold", 0.4)
         self.threshold = (
             self.get_parameter("threshold").get_parameter_value().double_value
         )
@@ -175,7 +175,7 @@ class Yolov8Node(Node):
         if self.enable:
             cv_image = self.cv_bridge.imgmsg_to_cv2(msg)
             # Required as cv_bridge is not converting correctly
-            cv_image = cv.cvtColor(cv_image, cv.COLOR_BGR2RGB)
+            cv_image = cv.cvtColor(cv_image, cv.COLOR_RGB2BGR)
 
             results = self.yolo.predict(
                 source=cv_image,
@@ -183,6 +183,7 @@ class Yolov8Node(Node):
                 stream=False,
                 conf=self.threshold,
                 device=self.device,
+                iou=0.7,
             )
             results: Results = results[0].cpu()
 
@@ -196,7 +197,6 @@ class Yolov8Node(Node):
             if results.keypoints:
                 keypoints = self.parse_keypoints(results)
 
-            # create detection msgs
             detections_msg = DetectionArray()
 
             for i in range(len(results)):

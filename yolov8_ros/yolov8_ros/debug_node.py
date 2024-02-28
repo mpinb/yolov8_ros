@@ -128,7 +128,7 @@ class DebugNode(Node):
             cv2.circle(
                 cv_image,
                 (int(kp.point.x), int(kp.point.y)),
-                5,
+                30,
                 color_k,
                 -1,
                 lineType=cv2.LINE_AA,
@@ -239,10 +239,15 @@ class DebugNode(Node):
 
             # Debugging: Explicit check for forceps class only
             # TODO: Remove this
-            if detection.class_id == 0:
-                cv_image = self.draw_box(cv_image, detection, color)
-                cv_image = self.draw_mask(cv_image, detection, color)
-                cv_image = self.draw_keypoints(cv_image, detection)
+            # if detection.class_id == 0:
+            #     cv_image = self.draw_box(cv_image, detection, color)
+            #     cv_image = self.draw_mask(cv_image, detection, color)
+            #     cv_image = self.draw_keypoints(cv_image, detection)
+
+            # Testing 
+            cv_image = self.draw_box(cv_image, detection, color)
+            cv_image = self.draw_mask(cv_image, detection, color)
+            cv_image = self.draw_keypoints(cv_image, detection)
 
             if detection.bbox3d.frame_id:
                 marker = self.create_bb_marker(detection)

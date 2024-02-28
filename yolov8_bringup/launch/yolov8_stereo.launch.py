@@ -26,7 +26,7 @@ def generate_launch_description():
     model = LaunchConfiguration("model")
     model_cmd = DeclareLaunchArgument(
         "model",
-        default_value="/home/nci_la/soma/ros_ws/src/fly-handler/data/yolov8/segmentation_forcep_and_floor_all_views/runs/default_x3/weights/last.pt",
+        default_value="/home/nci_la/soma/ros_ws/src/fly-handler/data/yolov8/segmentation_forcep_blue_bg/runs/exp2_defaultx_b4e1000/weights/best.pt",
         description="Model name or path",
     )
 
@@ -48,7 +48,7 @@ def generate_launch_description():
     threshold = LaunchConfiguration("threshold")
     threshold_cmd = DeclareLaunchArgument(
         "threshold",
-        default_value="0.3",
+        default_value="0.1",
         description="Minimum probability of a detection to be published",
     )
 
@@ -156,24 +156,15 @@ def generate_launch_description():
         remappings=[("image_raw", input_image_topic_right), ("detections", "tracking")],
     )
 
-    calibration_node_cmd = Node(
-        package="fh_calibration",
-        executable="stereo_camera_calibration",
-        name="stereo_camera_calibration_node",
-        remappings=[
-            ("left_cam_detections", "/yolo/left_cam/tracking"),
-            ("right_cam_detections", "/yolo/right_cam/tracking"),
-            ("motors_state", "/robotic_tweezers/motors/motors_state"),
-        ],
-    )
-
-    # other_launch_file = IncludeLaunchDescription(
-    #     PythonLaunchDescriptionSource(
-    #         os.path.join(
-    #             get_package_share_directory("micromanipulator_interface"),
-    #             "bring_up.launch",
-    #         )
-    #     )
+    # calibration_node_cmd = Node(
+    #     package="fh_calibration",
+    #     executable="stereo_camera_calibration",
+    #     name="stereo_camera_calibration_node",
+    #     remappings=[
+    #         ("left_cam_detections", "/yolo/left_cam/tracking"),
+    #         ("right_cam_detections", "/yolo/right_cam/tracking"),
+    #         ("motors_state", "/robotic_tweezers/motors/motors_state"),
+    #     ],
     # )
 
     ld = LaunchDescription()
@@ -195,7 +186,7 @@ def generate_launch_description():
     ld.add_action(tracking_node_right_cam_cmd)
     ld.add_action(debug_node_left_cam_cmd)
     ld.add_action(debug_node_right_cam_cmd)
-    # ld.add_action(other_launch_file)
+
     # ld.add_action(calibration_node_cmd)
 
     return ld
