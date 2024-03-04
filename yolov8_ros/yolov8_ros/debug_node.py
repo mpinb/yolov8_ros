@@ -47,8 +47,8 @@ class DebugNode(Node):
 
         # pubs
         self._dbg_pub = self.create_publisher(Image, "dbg_image", 10)
-        self._bb_markers_pub = self.create_publisher(MarkerArray, "dgb_bb_markers", 10)
-        self._kp_markers_pub = self.create_publisher(MarkerArray, "dgb_kp_markers", 10)
+        # self._bb_markers_pub = self.create_publisher(MarkerArray, "dgb_bb_markers", 10)
+        # self._kp_markers_pub = self.create_publisher(MarkerArray, "dgb_kp_markers", 10)
 
         # subs
         image_sub = message_filters.Subscriber(
@@ -227,15 +227,15 @@ class DebugNode(Node):
         detection: Detection
         for detection in detection_msg.detections:
             # random color
-            label = detection.class_name
+            # label = detection.class_name
 
-            if label not in self._class_to_color:
-                r = random.randint(0, 255)
-                g = random.randint(0, 255)
-                b = random.randint(0, 255)
-                self._class_to_color[label] = (r, g, b)
+            # if label not in self._class_to_color:
+            #     r = random.randint(0, 255)
+            #     g = random.randint(0, 255)
+            #     b = random.randint(0, 255)
+            #     self._class_to_color[label] = (r, g, b)
 
-            color = self._class_to_color[label]
+            # color = self._class_to_color[label]
 
             # Debugging: Explicit check for forceps class only
             # TODO: Remove this
@@ -244,31 +244,31 @@ class DebugNode(Node):
             #     cv_image = self.draw_mask(cv_image, detection, color)
             #     cv_image = self.draw_keypoints(cv_image, detection)
 
-            # Testing 
-            cv_image = self.draw_box(cv_image, detection, color)
-            cv_image = self.draw_mask(cv_image, detection, color)
+            # Testing
+            # cv_image = self.draw_box(cv_image, detection, color)
+            # cv_image = self.draw_mask(cv_image, detection, color)
             cv_image = self.draw_keypoints(cv_image, detection)
 
-            if detection.bbox3d.frame_id:
-                marker = self.create_bb_marker(detection)
-                marker.header.stamp = img_msg.header.stamp
-                marker.id = len(bb_marker_array.markers)
-                bb_marker_array.markers.append(marker)
+            # if detection.bbox3d.frame_id:
+            #     marker = self.create_bb_marker(detection)
+            #     marker.header.stamp = img_msg.header.stamp
+            #     marker.id = len(bb_marker_array.markers)
+            #     bb_marker_array.markers.append(marker)
 
-            if detection.keypoints3d.frame_id:
-                for kp in detection.keypoints3d.data:
-                    marker = self.create_kp_marker(kp)
-                    marker.header.frame_id = detection.keypoints3d.frame_id
-                    marker.header.stamp = img_msg.header.stamp
-                    marker.id = len(kp_marker_array.markers)
-                    kp_marker_array.markers.append(marker)
+            # if detection.keypoints3d.frame_id:
+            #     for kp in detection.keypoints3d.data:
+            #         marker = self.create_kp_marker(kp)
+            #         marker.header.frame_id = detection.keypoints3d.frame_id
+            #         marker.header.stamp = img_msg.header.stamp
+            #         marker.id = len(kp_marker_array.markers)
+            #         kp_marker_array.markers.append(marker)
 
         # publish dbg image
         self._dbg_pub.publish(
             self.cv_bridge.cv2_to_imgmsg(cv_image, encoding=img_msg.encoding)
         )
-        self._bb_markers_pub.publish(bb_marker_array)
-        self._kp_markers_pub.publish(kp_marker_array)
+        # self._bb_markers_pub.publish(bb_marker_array)
+        # self._kp_markers_pub.publish(kp_marker_array)
 
 
 def main():

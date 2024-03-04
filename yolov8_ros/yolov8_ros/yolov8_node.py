@@ -38,6 +38,8 @@ from yolov8_msgs.msg import Detection
 from yolov8_msgs.msg import DetectionArray
 from std_srvs.srv import SetBool
 
+import message_filters
+
 
 class Yolov8Node(Node):
     def __init__(self) -> None:
@@ -58,17 +60,31 @@ class Yolov8Node(Node):
         self.declare_parameter("enable", True)
         self.enable = self.get_parameter("enable").get_parameter_value().bool_value
 
+        self.iou = 0.7
+
         self.cv_bridge = CvBridge()
         self.yolo = YOLO(model)
         self.yolo.fuse()
 
         # pubs
-        self._pub = self.create_publisher(DetectionArray, "detections", 10)
-
-        # subs
-        self._sub = self.create_subscription(
-            Image, "image_raw", self.image_cb, qos_profile_sensor_data
+        self._pub_left = self.create_publisher(
+            DetectionArray, "left_cam/detections", 10
         )
+        self._pub_mid = self.create_publisher(DetectionArray, "mid_cam/detections", 10)
+        self._pub_right = self.create_publisher(
+            DetectionArray, "right_cam/detections", 10
+        )
+
+        # Syncronize the three cameras
+        self._sub_left = message_filters.Subscriber(self, Image, "left_cam/image_raw")
+        self._sub_mid = message_filters.Subscriber(self, Image, "mid_cam/image_raw")
+        self._sub_right = message_filters.Subscriber(self, Image, "right_cam/image_raw")
+
+        ts = message_filters.ApproximateTimeSynchronizer(
+            [self._sub_left, self._sub_mid, self._sub_right], 10, 0.1
+        )
+
+        ts.registerCallback(self.sync_image_cb)
 
         # services
         self._srv = self.create_service(SetBool, "enable", self.enable_cb)
@@ -171,55 +187,64 @@ class Yolov8Node(Node):
 
         return keypoints_list
 
-    def image_cb(self, msg: Image) -> None:
-        if self.enable:
-            cv_image = self.cv_bridge.imgmsg_to_cv2(msg)
-            # Required as cv_bridge is not converting correctly
-            cv_image = cv.cvtColor(cv_image, cv.COLOR_RGB2BGR)
+    def sync_image_cb(self, left_msg: Image, mid_msg: Image, right_msg: Image) -> None:
 
-            results = self.yolo.predict(
-                source=cv_image,
-                verbose=True,
-                stream=False,
-                conf=self.threshold,
-                device=self.device,
-                iou=0.7,
-            )
-            results: Results = results[0].cpu()
+        cv_image_left = self.cv_bridge.imgmsg_to_cv2(left_msg)
+        cv_image_mid = self.cv_bridge.imgmsg_to_cv2(mid_msg)
+        cv_image_right = self.cv_bridge.imgmsg_to_cv2(right_msg)
+
+        cv_image_left = cv.cvtColor(cv_image_left, cv.COLOR_BGR2RGB)
+        cv_image_mid = cv.cvtColor(cv_image_mid, cv.COLOR_BGR2RGB)
+        cv_image_right = cv.cvtColor(cv_image_right, cv.COLOR_BGR2RGB)
+
+        results = self.yolo.predict(
+            [cv_image_left, cv_image_mid, cv_image_right],
+            verbose=True,
+            stream=False,
+            conf=self.threshold,
+            device=self.device,
+            iou=self.iou,
+        )
+
+        self.process_detections(results[0], left_msg, self._pub_left)
+        self.process_detections(results[1], mid_msg, self._pub_mid)
+        self.process_detections(results[2], right_msg, self._pub_right)
+
+    def process_detections(self, results, msg, pub) -> None:
+
+        if results.boxes:
+            hypothesis = self.parse_hypothesis(results)
+            boxes = self.parse_boxes(results)
+
+        if results.masks:
+            masks = self.parse_masks(results)
+
+        if results.keypoints:
+            keypoints = self.parse_keypoints(results)
+
+        detections_msg = DetectionArray()
+
+        for i in range(len(results)):
+            aux_msg = Detection()
 
             if results.boxes:
-                hypothesis = self.parse_hypothesis(results)
-                boxes = self.parse_boxes(results)
+                aux_msg.class_id = hypothesis[i]["class_id"]
+                aux_msg.class_name = hypothesis[i]["class_name"]
+                aux_msg.score = hypothesis[i]["score"]
+
+                aux_msg.bbox = boxes[i]
 
             if results.masks:
-                masks = self.parse_masks(results)
+                aux_msg.mask = masks[i]
 
             if results.keypoints:
-                keypoints = self.parse_keypoints(results)
+                aux_msg.keypoints = keypoints[i]
 
-            detections_msg = DetectionArray()
+            detections_msg.detections.append(aux_msg)
 
-            for i in range(len(results)):
-                aux_msg = Detection()
-
-                if results.boxes:
-                    aux_msg.class_id = hypothesis[i]["class_id"]
-                    aux_msg.class_name = hypothesis[i]["class_name"]
-                    aux_msg.score = hypothesis[i]["score"]
-
-                    aux_msg.bbox = boxes[i]
-
-                if results.masks:
-                    aux_msg.mask = masks[i]
-
-                if results.keypoints:
-                    aux_msg.keypoints = keypoints[i]
-
-                detections_msg.detections.append(aux_msg)
-
-            # publish detections
-            detections_msg.header = msg.header
-            self._pub.publish(detections_msg)
+        # publish detections
+        detections_msg.header = msg.header
+        pub.publish(detections_msg)
 
 
 def main():
