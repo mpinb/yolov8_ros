@@ -240,11 +240,9 @@ class CascadedYolov8Node(Node):
         self.process_detections(
             pose_results[2], right_msg, roi_right_coords, self._pub_right
         )
+        self.get_logger().info("Processed detections")
 
     def process_detections(self, results, msg, roi_coords, pub) -> None:
-
-        self.get_logger().info("Processing detections")
-
         if results.boxes:
             hypothesis = self.parse_hypothesis(results)
             boxes = self.parse_boxes(results, roi_coords)
@@ -272,7 +270,6 @@ class CascadedYolov8Node(Node):
         # publish detections
         detections_msg.header = msg.header
         pub.publish(detections_msg)
-        self.get_logger().info("Published detections")
 
 
 def main():
