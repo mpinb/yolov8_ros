@@ -13,13 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 import numpy as np
-
 import rclpy
 from rclpy.qos import qos_profile_sensor_data
 from rclpy.node import Node
-
 import message_filters
 from cv_bridge import CvBridge
 
@@ -30,8 +27,8 @@ from ultralytics.utils.checks import check_requirements, check_yaml
 from ultralytics.engine.results import Boxes
 
 from sensor_msgs.msg import Image
-from yolov8_msgs.msg import Detection
-from yolov8_msgs.msg import DetectionArray
+from yolov8_msgs.msg import Detection, DetectionArray
+from OneEuroFilter import OneEuroFilter
 
 
 class TrackingNode(Node):
@@ -41,8 +38,7 @@ class TrackingNode(Node):
 
         # params
         self.declare_parameter("tracker", "bytetrack.yaml")
-        tracker = self.get_parameter(
-            "tracker").get_parameter_value().string_value
+        tracker = self.get_parameter("tracker").get_parameter_value().string_value
 
         self.cv_bridge = CvBridge()
         self.tracker = self.create_tracker(tracker)
@@ -52,29 +48,52 @@ class TrackingNode(Node):
 
         # subs
         image_sub = message_filters.Subscriber(
-            self, Image, "image_raw", qos_profile=qos_profile_sensor_data)
+            self, Image, "image_raw", qos_profile=qos_profile_sensor_data
+        )
         detections_sub = message_filters.Subscriber(
-            self, DetectionArray, "detections", qos_profile=10)
+            self, DetectionArray, "detections", qos_profile=10
+        )
 
         self._synchronizer = message_filters.ApproximateTimeSynchronizer(
-            (image_sub, detections_sub), 10, 0.5)
+            (image_sub, detections_sub), 10, 0.5
+        )
         self._synchronizer.registerCallback(self.detections_cb)
 
-    def create_tracker(self, tracker_yaml: str) -> BaseTrack:
+        # Initialize OneEuroFilter for keypoints
+        self.filter_params = {
+            "freq": 10,  # Assumed frame rate
+            "mincutoff": 0.8,
+            "beta": 0.0,
+            "dcutoff": 1.0,
+        }
+        self.keypoint_filters = {}
 
+    def create_tracker(self, tracker_yaml: str) -> BaseTrack:
         TRACKER_MAP = {"bytetrack": BYTETracker, "botsort": BOTSORT}
         check_requirements("lap")  # for linear_assignment
 
         tracker = check_yaml(tracker_yaml)
         cfg = IterableSimpleNamespace(**yaml_load(tracker))
 
-        assert cfg.tracker_type in ["bytetrack", "botsort"], \
-            f"Only support 'bytetrack' and 'botsort' for now, but got '{cfg.tracker_type}'"
+        assert cfg.tracker_type in [
+            "bytetrack",
+            "botsort",
+        ], f"Only support 'bytetrack' and 'botsort' for now, but got '{cfg.tracker_type}'"
         tracker = TRACKER_MAP[cfg.tracker_type](args=cfg, frame_rate=1)
         return tracker
 
-    def detections_cb(self, img_msg: Image, detections_msg: DetectionArray) -> None:
+    def get_filter(self, track_id, keypoint_index=None):
+        if track_id not in self.keypoint_filters:
+            self.keypoint_filters[track_id] = {}
+        if keypoint_index is not None:
+            if keypoint_index not in self.keypoint_filters[track_id]:
+                self.keypoint_filters[track_id][keypoint_index] = {
+                    "x": OneEuroFilter(**self.filter_params),
+                    "y": OneEuroFilter(**self.filter_params),
+                }
+        return self.keypoint_filters[track_id].get(keypoint_index)
 
+    def detections_cb(self, img_msg: Image, detections_msg: DetectionArray) -> None:
         tracked_detections_msg = DetectionArray()
         tracked_detections_msg.header = img_msg.header
 
@@ -85,7 +104,6 @@ class TrackingNode(Node):
         detection_list = []
         detection: Detection
         for detection in detections_msg.detections:
-
             detection_list.append(
                 [
                     detection.bbox.center.position.x - detection.bbox.size.x / 2,
@@ -93,29 +111,19 @@ class TrackingNode(Node):
                     detection.bbox.center.position.x + detection.bbox.size.x / 2,
                     detection.bbox.center.position.y + detection.bbox.size.y / 2,
                     detection.score,
-                    detection.class_id
+                    detection.class_id,
                 ]
             )
 
         # tracking
         if len(detection_list) > 0:
-
-            det = Boxes(
-                np.array(detection_list),
-                (img_msg.height, img_msg.width)
-            )
-
+            det = Boxes(np.array(detection_list), (img_msg.height, img_msg.width))
             tracks = self.tracker.update(det, cv_image)
 
             if len(tracks) > 0:
-
                 for t in tracks:
-
-                    tracked_box = Boxes(
-                        t[:-1], (img_msg.height, img_msg.width))
-
-                    tracked_detection: Detection = detections_msg.detections[int(
-                        t[-1])]
+                    tracked_box = Boxes(t[:-1], (img_msg.height, img_msg.width))
+                    tracked_detection: Detection = detections_msg.detections[int(t[-1])]
 
                     # get boxes values
                     box = tracked_box.xywh[0]
@@ -129,6 +137,14 @@ class TrackingNode(Node):
                     if tracked_box.is_track:
                         track_id = str(int(tracked_box.id))
                     tracked_detection.id = track_id
+
+                    # Apply filtering to keypoints if available
+                    if hasattr(tracked_detection, "keypoints"):
+                        for kp in tracked_detection.keypoints.data:
+                            one_euro_filter = self.get_filter(track_id, kp.id)
+                            if one_euro_filter:
+                                kp.point.x = one_euro_filter["x"](kp.point.x)
+                                kp.point.y = one_euro_filter["y"](kp.point.y)
 
                     # append msg
                     tracked_detections_msg.detections.append(tracked_detection)
