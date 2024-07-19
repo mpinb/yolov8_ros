@@ -26,7 +26,7 @@ def generate_launch_description():
     model = LaunchConfiguration("model")
     model_cmd = DeclareLaunchArgument(
         "model",
-        default_value="/home/nci_la/soma/ros_ws/src/fly-handler/data/yolov8/segmentation_forcep_blue_bg/runs/exp2_defaultx_b4e1000/weights/best.pt",
+        default_value="/home/nci_la/soma/ros_ws/src/fly-handler/data/yolov8/pose_flyROI_real_blue_bg/runs/exp_2_pretrainedonsynthetic_yolov8m-pose/weights/best.pt",
         description="Model name or path",
     )
 
@@ -108,38 +108,10 @@ def generate_launch_description():
                 "threshold": threshold,
             }
         ],
-        remappings=[("left_cam/image_raw", input_image_topic_left),
-                     ("mid_cam/image_raw", input_image_topic_mid),
-                     ("right_cam/image_raw", input_image_topic_right)],
-    )
-
-    tip_localizor_node_left_cam_cmd = Node(
-        package="fh_tip_localization",
-        executable="tip_localizor",
-        name="tip_localizor_node",
-        namespace=f"yolo/left_cam",
         remappings=[
-            ("image_raw", input_image_topic_left),
-        ],
-    )
-    
-    tip_localizor_node_mid_cam_cmd = Node(
-        package="fh_tip_localization",
-        executable="tip_localizor",
-        name="tip_localizor_node",
-        namespace=f"yolo/mid_cam",
-        remappings=[
-            ("image_raw", input_image_topic_mid),
-        ],
-    )
-
-    tip_localizor_node_right_cam_cmd = Node(
-        package="fh_tip_localization",
-        executable="tip_localizor",
-        name="tip_localizor_node",
-        namespace=f"yolo/right_cam",
-        remappings=[
-            ("image_raw", input_image_topic_right),
+            ("left_cam/image_raw", input_image_topic_left),
+            ("mid_cam/image_raw", input_image_topic_mid),
+            ("right_cam/image_raw", input_image_topic_right),
         ],
     )
 
@@ -151,7 +123,6 @@ def generate_launch_description():
         parameters=[{"tracker": tracker}],
         remappings=[
             ("image_raw", input_image_topic_left),
-            ("detections", "detections_with_tips"),
         ],
     )
 
@@ -163,7 +134,6 @@ def generate_launch_description():
         parameters=[{"tracker": tracker}],
         remappings=[
             ("image_raw", input_image_topic_right),
-            ("detections", "detections_with_tips"),
         ],
     )
 
@@ -175,7 +145,6 @@ def generate_launch_description():
         parameters=[{"tracker": tracker}],
         remappings=[
             ("image_raw", input_image_topic_mid),
-            ("detections", "detections_with_tips"),
         ],
     )
 

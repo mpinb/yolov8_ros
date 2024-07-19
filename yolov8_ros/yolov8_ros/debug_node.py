@@ -128,7 +128,7 @@ class DebugNode(Node):
             cv2.circle(
                 cv_image,
                 (int(kp.point.x), int(kp.point.y)),
-                30,
+                10,
                 color_k,
                 -1,
                 lineType=cv2.LINE_AA,
@@ -144,15 +144,15 @@ class DebugNode(Node):
             kp1_pos = get_pk_pose(sk[0])
             kp2_pos = get_pk_pose(sk[1])
 
-            if kp1_pos is not None and kp2_pos is not None:
-                cv2.line(
-                    cv_image,
-                    kp1_pos,
-                    kp2_pos,
-                    [int(x) for x in ann.limb_color[i]],
-                    thickness=2,
-                    lineType=cv2.LINE_AA,
-                )
+            # if kp1_pos is not None and kp2_pos is not None:
+            #     cv2.line(
+            #         cv_image,
+            #         kp1_pos,
+            #         kp2_pos,
+            #         [int(x) for x in ann.limb_color[i]],
+            #         thickness=2,
+            #         lineType=cv2.LINE_AA,
+            #     )
 
         return cv_image
 
@@ -227,15 +227,15 @@ class DebugNode(Node):
         detection: Detection
         for detection in detection_msg.detections:
             # random color
-            # label = detection.class_name
+            label = detection.class_name
 
-            # if label not in self._class_to_color:
-            #     r = random.randint(0, 255)
-            #     g = random.randint(0, 255)
-            #     b = random.randint(0, 255)
-            #     self._class_to_color[label] = (r, g, b)
+            if label not in self._class_to_color:
+                r = random.randint(0, 255)
+                g = random.randint(0, 255)
+                b = random.randint(0, 255)
+                self._class_to_color[label] = (r, g, b)
 
-            # color = self._class_to_color[label]
+            color = self._class_to_color[label]
 
             # Debugging: Explicit check for forceps class only
             # TODO: Remove this
@@ -245,8 +245,8 @@ class DebugNode(Node):
             #     cv_image = self.draw_keypoints(cv_image, detection)
 
             # Testing
-            # cv_image = self.draw_box(cv_image, detection, color)
-            # cv_image = self.draw_mask(cv_image, detection, color)
+            cv_image = self.draw_box(cv_image, detection, color)
+            cv_image = self.draw_mask(cv_image, detection, color)
             cv_image = self.draw_keypoints(cv_image, detection)
 
             # if detection.bbox3d.frame_id:

@@ -52,7 +52,7 @@ class Yolov8Node(Node):
         self.declare_parameter("device", "cuda:0")
         self.device = self.get_parameter("device").get_parameter_value().string_value
 
-        self.declare_parameter("threshold", 0.4)
+        self.declare_parameter("threshold", 0.5)
         self.threshold = (
             self.get_parameter("threshold").get_parameter_value().double_value
         )
@@ -64,7 +64,7 @@ class Yolov8Node(Node):
 
         self.cv_bridge = CvBridge()
         self.yolo = YOLO(model)
-        self.yolo.fuse()
+        # self.yolo.fuse()
 
         # pubs
         self._pub_left = self.create_publisher(
@@ -201,9 +201,9 @@ class Yolov8Node(Node):
             [cv_image_left, cv_image_mid, cv_image_right],
             verbose=True,
             stream=False,
-            conf=self.threshold,
+            conf=0.1,
             device=self.device,
-            iou=self.iou,
+            iou=0.5,
         )
 
         self.process_detections(results[0], left_msg, self._pub_left)
