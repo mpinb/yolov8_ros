@@ -68,6 +68,25 @@ def generate_launch_description():
         description="Minimum probability of a detection to be published",
     )
 
+    filter_freq = LaunchConfiguration("filter_freq")
+    filter_freq_cmd = DeclareLaunchArgument(
+        "filter_freq", default_value="20", description="Filter frequency"
+    )
+    filter_mincutoff = LaunchConfiguration("filter_mincutoff")
+    filter_mincutoff_cmd = DeclareLaunchArgument(
+        "filter_mincutoff", default_value="0.5", description="Filter mincutoff"
+    )
+
+    filter_beta = LaunchConfiguration("filter_beta")
+    filter_beta_cmd = DeclareLaunchArgument(
+        "filter_beta", default_value="0.0", description="Filter beta"
+    )
+
+    filter_dcutoff = LaunchConfiguration("filter_dcutoff")
+    filter_dcutoff_cmd = DeclareLaunchArgument(
+        "filter_dcutoff", default_value="1.0", description="Filter dcutoff"
+    )
+
     input_image_topic_left = LaunchConfiguration("input_image_topic_left")
     input_image_topic_left_cmd = DeclareLaunchArgument(
         "input_image_topic_left",
@@ -122,7 +141,15 @@ def generate_launch_description():
         executable="tracking_node",
         name="tracking_node",
         namespace=f"yolo/left_cam",
-        parameters=[{"tracker": tracker}],
+        parameters=[
+            {
+                "tracker": tracker,
+                "filter_freq": filter_freq,
+                "filter_mincutoff": filter_mincutoff,
+                "filter_beta": filter_beta,
+                "filter_dcutoff": filter_dcutoff,
+            }
+        ],
         remappings=[
             ("image_raw", input_image_topic_left),
         ],
@@ -133,7 +160,15 @@ def generate_launch_description():
         executable="tracking_node",
         name="tracking_node",
         namespace=f"yolo/right_cam",
-        parameters=[{"tracker": tracker}],
+        parameters=[
+            {
+                "tracker": tracker,
+                "filter_freq": filter_freq,
+                "filter_mincutoff": filter_mincutoff,
+                "filter_beta": filter_beta,
+                "filter_dcutoff": filter_dcutoff,
+            }
+        ],
         remappings=[
             ("image_raw", input_image_topic_right),
         ],
@@ -144,7 +179,15 @@ def generate_launch_description():
         executable="tracking_node",
         name="tracking_node",
         namespace=f"yolo/mid_cam",
-        parameters=[{"tracker": tracker}],
+        parameters=[
+            {
+                "tracker": tracker,
+                "filter_freq": filter_freq,
+                "filter_mincutoff": filter_mincutoff,
+                "filter_beta": filter_beta,
+                "filter_dcutoff": filter_dcutoff,
+            }
+        ],
         remappings=[
             ("image_raw", input_image_topic_mid),
         ],
@@ -187,6 +230,10 @@ def generate_launch_description():
     ld.add_action(input_image_topic_right_cmd)
     ld.add_action(input_image_topic_mid_cmd)
     ld.add_action(namespace_cmd)
+    ld.add_action(filter_freq_cmd)
+    ld.add_action(filter_mincutoff_cmd)
+    ld.add_action(filter_beta_cmd)
+    ld.add_action(filter_dcutoff_cmd)
 
     ld.add_action(cascaded_yolo_node_combined_cmd)
     ld.add_action(tracking_node_left_cam_cmd)
