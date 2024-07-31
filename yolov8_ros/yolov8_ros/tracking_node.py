@@ -40,6 +40,25 @@ class TrackingNode(Node):
         self.declare_parameter("tracker", "bytetrack.yaml")
         tracker = self.get_parameter("tracker").get_parameter_value().string_value
 
+        self.declare_parameter("filter_freq", 10)
+        self.declare_parameter("filter_mincutoff", 0.5)
+        self.declare_parameter("filter_beta", 0.0)
+        self.declare_parameter("filter_dcutoff", 1.0)
+        self.filter_params = {
+            "freq": self.get_parameter("filter_freq")
+            .get_parameter_value()
+            .integer_value,
+            "mincutoff": self.get_parameter("filter_mincutoff")
+            .get_parameter_value()
+            .double_value,
+            "beta": self.get_parameter("filter_beta")
+            .get_parameter_value()
+            .double_value,
+            "dcutoff": self.get_parameter("filter_dcutoff")
+            .get_parameter_value()
+            .double_value,
+        }
+
         self.cv_bridge = CvBridge()
         self.tracker = self.create_tracker(tracker)
 
@@ -60,13 +79,9 @@ class TrackingNode(Node):
         self._synchronizer.registerCallback(self.detections_cb)
 
         # Initialize OneEuroFilter for keypoints
-        self.filter_params = {
-            "freq": 10,  # Assumed frame rate
-            "mincutoff": 0.8,
-            "beta": 0.0,
-            "dcutoff": 1.0,
-        }
         self.keypoint_filters = {}
+
+        self._logger.info(f"Params: {self.filter_params}")
 
     def create_tracker(self, tracker_yaml: str) -> BaseTrack:
         TRACKER_MAP = {"bytetrack": BYTETracker, "botsort": BOTSORT}
@@ -104,16 +119,17 @@ class TrackingNode(Node):
         detection_list = []
         detection: Detection
         for detection in detections_msg.detections:
-            detection_list.append(
-                [
-                    detection.bbox.center.position.x - detection.bbox.size.x / 2,
-                    detection.bbox.center.position.y - detection.bbox.size.y / 2,
-                    detection.bbox.center.position.x + detection.bbox.size.x / 2,
-                    detection.bbox.center.position.y + detection.bbox.size.y / 2,
-                    detection.score,
-                    detection.class_id,
-                ]
-            )
+            if detection.bbox.size.x > 0 and detection.bbox.size.y > 0:
+                detection_list.append(
+                    [
+                        detection.bbox.center.position.x - detection.bbox.size.x / 2,
+                        detection.bbox.center.position.y - detection.bbox.size.y / 2,
+                        detection.bbox.center.position.x + detection.bbox.size.x / 2,
+                        detection.bbox.center.position.y + detection.bbox.size.y / 2,
+                        detection.score,
+                        detection.class_id,
+                    ]
+                )
 
         # tracking
         if len(detection_list) > 0:
@@ -148,6 +164,18 @@ class TrackingNode(Node):
 
                     # append msg
                     tracked_detections_msg.detections.append(tracked_detection)
+        else:
+            # No tracking, just pass through detections
+            tracked_detections_msg = detections_msg
+
+            # Just apply filtering to keypoints
+            for detection in tracked_detections_msg.detections:
+                if hasattr(detection, "keypoints"):
+                    for kp in detection.keypoints.data:
+                        one_euro_filter = self.get_filter(detection.id, kp.id)
+                        if one_euro_filter:
+                            kp.point.x = one_euro_filter["x"](kp.point.x)
+                            kp.point.y = one_euro_filter["y"](kp.point.y)
 
         # publish detections
         self._pub.publish(tracked_detections_msg)
